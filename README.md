@@ -4,4 +4,4 @@ The source code for the DRT analysis module is derived from the research conduct
 For the detailed parameter calculation and derivation processes, please refer to the files Formula derivation1.nb and Formula derivation2.nb.
 The implementation based on the RLS-HIF algorithm is located within the fc_id directory.
 The fault diagnosis and classification algorithms are detailed in the Fault diagnosis directory.
-# **How to get support?**Just write to yuxuan.lin@mail.nwpu.edu.cn
+**How to get support?**Just write to yuxuan.lin@mail.nwpu.edu.cn
