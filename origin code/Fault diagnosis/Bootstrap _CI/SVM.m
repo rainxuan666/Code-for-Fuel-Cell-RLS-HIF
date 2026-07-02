@@ -1,0 +1,102 @@
+clear all; close all; clc;
+
+%% Data load
+data_train = readmatrix('data_train.csv');
+data_test  = readmatrix('data_test.csv');
+
+X_train = normalize(data_train(:, 2:10));
+y_train = data_train(:, 1);
+
+X_test  = normalize(data_test(:, 2:10));
+y_test  = data_test(:, 1);
+
+classNames = {'1','2','3'};
+numClasses = numel(classNames);
+
+%% Train 
+template = templateSVM('KernelFunction', 'gaussian', ...
+                       'BoxConstraint', 1, ...
+                       'KernelScale',   'auto', ...
+                       'Standardize',   true);
+
+tic;
+svm_model = fitcecoc(X_train, y_train, ...
+                     'Learners', template, ...
+                     'Coding',   'onevsall', ...
+                     'Verbose',   0);
+elapsedTime = toc;
+fprintf('Training time: %.4f s\n', elapsedTime);
+
+%% Accuracy
+train_pred     = predict(svm_model, X_train);
+train_accuracy = sum(train_pred == y_train) / numel(y_train);
+fprintf('Training accuracy: %.2f%%\n', train_accuracy * 100);
+
+test_pred     = predict(svm_model, X_test);
+test_accuracy = sum(test_pred == y_test) / numel(y_test);
+fprintf('Test accuracy: %.2f%%\n', test_accuracy * 100);
+
+%% Confusion Matrix
+conf_mat = confusionmat(y_test, test_pred);
+figure('Name', 'Confusion Matrix');
+confusionchart(conf_mat, classNames);
+title('SVM Confusion Matrix');
+
+%% Per-Class Precision / Recall / F1
+[precision, recall, f1] = computePRF1(conf_mat, numClasses);
+
+
+macro_precision = mean(precision);
+macro_recall    = mean(recall);
+macro_f1        = mean(f1);
+
+
+classSupport       = sum(conf_mat, 2);
+totalSamples       = sum(classSupport);
+weighted_precision = sum(precision .* classSupport) / totalSamples;
+weighted_recall    = sum(recall    .* classSupport) / totalSamples;
+weighted_f1        = sum(f1        .* classSupport) / totalSamples;
+
+
+fprintf('\n====== Classification Performance ======\n');
+fprintf('%-12s %10s %10s %10s %10s\n', 'Class', 'Precision', 'Recall', 'F1-Score', 'Support');
+fprintf('%s\n', repmat('-', 1, 57));
+for i = 1:numClasses
+    fprintf('%-12s %10.4f %10.4f %10.4f %10d\n', ...
+        classNames{i}, precision(i), recall(i), f1(i), classSupport(i));
+end
+fprintf('%s\n', repmat('-', 1, 57));
+fprintf('%-12s %10.4f %10.4f %10.4f %10d\n', ...
+    'Macro Avg',    macro_precision,    macro_recall,    macro_f1,    totalSamples);
+fprintf('%-12s %10.4f %10.4f %10.4f %10d\n', ...
+    'Weighted Avg', weighted_precision, weighted_recall, weighted_f1, totalSamples);
+
+
+function [precision, recall, f1] = computePRF1(cm, numClasses)
+    precision = zeros(numClasses, 1);
+    recall    = zeros(numClasses, 1);
+    f1        = zeros(numClasses, 1);
+    for i = 1:numClasses
+        TP = cm(i, i);
+        FP = sum(cm(:, i)) - TP;
+        FN = sum(cm(i, :)) - TP;
+
+        if (TP + FP) == 0
+            precision(i) = 0;
+        else
+            precision(i) = TP / (TP + FP);
+        end
+
+        if (TP + FN) == 0
+            recall(i) = 0;
+        else
+            recall(i) = TP / (TP + FN);
+        end
+
+        if (precision(i) + recall(i)) == 0
+            f1(i) = 0;
+        else
+            f1(i) = 2 * precision(i) * recall(i) / (precision(i) + recall(i));
+        end
+    end
+end
